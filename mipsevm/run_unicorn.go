@@ -120,6 +120,7 @@ func GetHookedUnicorn(root string, ram map[uint32](uint32), callback func(int, u
 		} else if syscall_no == 4246 {
 			// exit group
 			mu.RegWrite(uc.MIPS_REG_PC, 0x5ead0000)
+			fmt.Println("exit")
 		} else {
 			//fmt.Println("syscall", syscall_no)
 		}
@@ -205,6 +206,7 @@ func RunUnicorn(fn string, ram map[uint32](uint32), checkIO bool, callback func(
 		real := append([]byte{0x13, 0x37, 0xf0, 0x0d}, outputs...)
 		output, _ := mu.MemRead(0x30000800, 0x44)
 		if bytes.Compare(real, output) != 0 {
+			fmt.Printf("%x != %x\n", real, output)
 			log.Fatal("mismatch output")
 		} else {
 			fmt.Println("output match")

@@ -6,11 +6,18 @@ import (
 	"log"
 	"testing"
 	"time"
+	uc "github.com/unicorn-engine/unicorn/bindings/go/unicorn"
 )
 
 func TestMinigethUnicorn(t *testing.T) {
 	uniram := make(map[uint32](uint32))
-	RunUnicorn("../mipigo/minigeth.bin", uniram, true, nil)
+	RunUnicorn("../mipigo/hello-world.bin", uniram, true, func(step int, mu uc.Unicorn, ram map[uint32](uint32)) {
+		SyncRegs(mu, ram)
+		if step%1 == 0 {
+			steps_per_sec := float64(step) * 1e9 / float64(time.Now().Sub(ministart).Nanoseconds())
+			fmt.Printf("%10d pc: %x steps per s %f ram entries %d\n", step, ram[0xc0000080], steps_per_sec, len(ram))
+		}
+	})
 }
 
 func TestSimpleEVM(t *testing.T) {

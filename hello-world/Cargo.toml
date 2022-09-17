@@ -6,7 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-once_cell = "*"
-anyhow = "*"
-ethereum-bigint = "*"
 libc = "*"
+
+[profile.dev]
+panic = "abort"
+[profile.release]
+panic = "abort"

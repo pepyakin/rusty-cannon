@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-build: submodules libunicorn minigeth_mips minigeth_prefetch mipsevm contracts
+build: submodules libunicorn hello_world minigeth_mips minigeth_prefetch mipsevm contracts
 .PHONY: build
 
 submodules:
@@ -10,6 +10,10 @@ submodules:
 		git submodule update; \
 	fi
 .PHONY: submodules
+
+hello_world:
+	RUSTFLAGS="-Ctarget-feature=+soft-float -Ctarget-feature=+crt-static" cargo build --release --target mips-unknown-linux-gnu --manifest-path=hello-world/Cargo.toml
+	mips-linux-gnu-objdump -d /code/hello-world/target/mips-unknown-linux-gnu/release/hello-world > /code/hello-world.dis
 
 # Approximation, use `make libunicorn_rebuild` to force.
 unicorn/build: unicorn/CMakeLists.txt
