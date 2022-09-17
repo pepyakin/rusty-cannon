@@ -1,1 +1,2 @@
 [target.mips-unknown-linux-gnu]
+# rustflags = ["-Cpanic=abort", "-Ctarget-feature=+soft-float", "-Ctarget-feature=+crt-static", "-Clink-arg=-nostdlib", "-Clink-arg=-nostartfiles"]

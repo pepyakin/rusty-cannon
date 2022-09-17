@@ -2,6 +2,7 @@
 //! environment. The host environment is either the prover or the onchain verifier.
 
 use super::H256;
+use core::ptr;
 
 /// The address of the input hash.
 const PTR_INPUT_HASH: usize = 0x30000000;
@@ -23,19 +24,17 @@ pub fn input_hash() -> H256 {
 
 /// Prepares the guest envrionment to exiting. Writes the output hash and the magic to be read by
 /// the host and then halts the execution.
-#[inline(never)]
 pub fn output(hash: H256) -> ! {
     // TODO: consider writing the receipts.
     unsafe {
-        *(PTR_OUTPUT_HASH as *mut [u8; 32]) = hash.0;
-        *(PTR_MAGIC as *mut u32) = 0x1337f00d;
+        ptr::write_volatile(PTR_MAGIC as *mut u32, 0x1337f00d);
+        ptr::write_volatile(PTR_OUTPUT_HASH as *mut [u8; 32], hash.0);
     }
     halt();
 }
 
 /// Normal stop of the execution.
-#[inline(never)]
-fn halt() -> ! {
+pub fn halt() -> ! {
     unsafe {
         libc::exit(0);
     }
