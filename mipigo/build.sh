@@ -8,7 +8,7 @@ export GOMIPS=softfloat
 go build -o ../mipigo/minigeth
 cd ../mipigo
 
-cp ../hello-world/target/mips-unknown-linux-gnu/release/hello-world .
+cp ../hello-world/target/target/release/hello-world .
 
 python3 -m venv venv
 

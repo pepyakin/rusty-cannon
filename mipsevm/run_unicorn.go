@@ -75,6 +75,10 @@ func GetHookedUnicorn(root string, ram map[uint32](uint32), callback func(int, u
 
 	_, outputfault := os.LookupEnv("OUTPUTFAULT")
 
+	cur_brk := uint64(0x50000000)
+	start_brk := uint64(0x50000000)
+	end_brk := uint64(0x50000000 + 0x400000)
+
 	mu.HookAdd(uc.HOOK_INTR, func(mu uc.Unicorn, intno uint32) {
 		if intno != 17 {
 			log.Fatal("invalid interrupt ", intno, " at step ", steps)
@@ -114,15 +118,31 @@ func GetHookedUnicorn(root string, ram map[uint32](uint32), callback func(int, u
 				v0 = a0
 			}
 		} else if syscall_no == 4045 {
-			v0 = 0x40000000
+			new_brk, _ := mu.RegRead(uc.MIPS_REG_A0)
+
+			if new_brk < start_brk {
+				// shrinking the heap past the start is not allowed
+				// also, this handles the brk(0) case.
+				v0 = cur_brk
+			} else if new_brk > end_brk {
+				// extending the heap past the end is not allowed
+				v0 = cur_brk
+			} else {
+				// shrinking or extending the heap is allowed as long it's not past the start or end
+				v0 = cur_brk
+				cur_brk = new_brk
+				// TODO: Alignment
+			}
+
+			fmt.Printf("brk(%x): %x\n", new_brk, v0)
 		} else if syscall_no == 4120 {
 			v0 = 1
 		} else if syscall_no == 4246 {
 			// exit group
-			mu.RegWrite(uc.MIPS_REG_PC, 0x5ead0000)
 			fmt.Println("exit")
+			mu.RegWrite(uc.MIPS_REG_PC, 0x5ead0000)
 		} else {
-			//fmt.Println("syscall", syscall_no)
+			fmt.Println("syscall", syscall_no)
 		}
 		mu.RegWrite(uc.MIPS_REG_V0, v0)
 		mu.RegWrite(uc.MIPS_REG_A3, 0)

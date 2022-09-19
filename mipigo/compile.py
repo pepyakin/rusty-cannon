@@ -7,6 +7,8 @@ from rangetree import RangeTree
 from elftools.elf.elffile import ELFFile
 
 def load_minigeth(fn="minigeth"):
+  print("compiling ", os.path.abspath(fn))
+
   elf = open(fn, "rb")
   data = elf.read()
   elf.seek(0)
@@ -16,6 +18,9 @@ def load_minigeth(fn="minigeth"):
   end_addr = 0
   for seg in elffile.iter_segments():
     end_addr = max(end_addr, seg.header.p_vaddr + seg.header.p_memsz)
+  for section in elffile.iter_sections():
+    if section.name == ".got":
+      end_addr = max(end_addr, section.header.sh_addr + section.header.sh_size)
 
   # program memory (16 MB)
   prog_size = (end_addr+0xFFF) & ~0xFFF
@@ -56,10 +61,16 @@ def load_minigeth(fn="minigeth"):
     except Exception:
       #traceback.print_exc()
       pass
+  
+  # Copy the GOT section to its address in the prog_dat blob.
+  for section in elffile.iter_sections():
+    if section.name == ".got":
+      print(hex(section.header.sh_addr))
+      prog_dat[section.header.sh_addr:section.header.sh_addr+len(section.data())] = section.data()
+      print("copied .got to 0x%x" % (section.header.sh_addr))
 
   #assert(found == 2)
   return prog_dat, prog_size, r
-
 
 if __name__ == "__main__":
   fn = "minigeth"

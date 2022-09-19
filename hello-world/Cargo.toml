@@ -6,8 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-libc = "*"
-wee_alloc = "*"
 
 [build-dependencies]
 cc = "*"
@@ -16,3 +14,5 @@ cc = "*"
 panic = "abort"
 [profile.release]
 panic = "abort"
+lto = "fat"
+codegen-units = 1

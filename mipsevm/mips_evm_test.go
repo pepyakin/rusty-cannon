@@ -15,7 +15,13 @@ func TestMinigethUnicorn(t *testing.T) {
 		SyncRegs(mu, ram)
 		if step%1 == 0 {
 			steps_per_sec := float64(step) * 1e9 / float64(time.Now().Sub(ministart).Nanoseconds())
-			fmt.Printf("%10d pc: %x steps per s %f ram entries %d\n", step, ram[0xc0000080], steps_per_sec, len(ram))
+
+			pc, _ := mu.RegRead(uc.MIPS_REG_PC)
+			gp, _ := mu.RegRead(uc.MIPS_REG_ZERO + 28)
+			ra, _ := mu.RegRead(uc.MIPS_REG_RA)
+			fmt.Printf(
+				"%10d pc: %x gp: %x ra: %x steps per s %f ram entries %d\n", 
+				step, pc, gp, ra, steps_per_sec, len(ram))
 		}
 	})
 }

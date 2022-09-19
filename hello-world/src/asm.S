@@ -1,7 +1,5 @@
-.global exit
-.type exit,@function
+.global halt
 
-exit:
-
-li $v0, 4246
-syscall
+halt:
+    li $v0, 4246
+    syscall
