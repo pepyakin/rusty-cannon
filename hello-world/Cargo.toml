@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+linked_list_allocator = "0.10.3"
+rlibc = "1.0.0"
 
 [build-dependencies]
 cc = "*"
