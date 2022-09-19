@@ -25,17 +25,14 @@ pub fn input_hash() -> H256 {
 /// Prepares the guest envrionment to exiting. Writes the output hash and the magic to be read by
 /// the host and then halts the execution.
 pub fn output(hash: H256) -> ! {
+    extern "C" {
+        fn halt() -> !;
+    }
+
     // TODO: consider writing the receipts.
     unsafe {
         ptr::write_volatile(PTR_MAGIC as *mut u32, 0x1337f00d);
         ptr::write_volatile(PTR_OUTPUT_HASH as *mut [u8; 32], hash.0);
-    }
-    halt();
-}
-
-/// Normal stop of the execution.
-pub fn halt() -> ! {
-    unsafe {
-        libc::exit(0);
+        halt();
     }
 }
