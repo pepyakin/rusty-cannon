@@ -11,7 +11,7 @@ import (
 
 func TestMinigethUnicorn(t *testing.T) {
 	uniram := make(map[uint32](uint32))
-	RunUnicorn("../mipigo/hello-world.bin", uniram, true, func(step int, mu uc.Unicorn, ram map[uint32](uint32)) {
+	RunUnicorn("../mipigo/arbitrary-prover-main.bin", uniram, true, func(step int, mu uc.Unicorn, ram map[uint32](uint32)) {
 		SyncRegs(mu, ram)
 		if step%1 == 0 {
 			steps_per_sec := float64(step) * 1e9 / float64(time.Now().Sub(ministart).Nanoseconds())

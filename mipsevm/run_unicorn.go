@@ -89,6 +89,7 @@ func GetHookedUnicorn(root string, ram map[uint32](uint32), callback func(int, u
 			oracle_hash, _ := mu.MemRead(0x30001000, 0x20)
 			hash := common.BytesToHash(oracle_hash)
 			key := fmt.Sprintf("%s/%s", root, hash)
+			fmt.Printf("oracle %s\n", key)
 			value, err := ioutil.ReadFile(key)
 			check(err)
 
@@ -195,7 +196,7 @@ func LoadMappedFileUnicorn(mu uc.Unicorn, fn string, ram map[uint32](uint32), ba
 
 // reimplement simple.py in go
 func RunUnicorn(fn string, ram map[uint32](uint32), checkIO bool, callback func(int, uc.Unicorn, map[uint32](uint32))) {
-	root := "/tmp/cannon/0_13284469"
+	root := "/tmp/cannon/0_1"
 	mu := GetHookedUnicorn(root, ram, callback)
 
 	// loop forever to match EVM
@@ -224,7 +225,7 @@ func RunUnicorn(fn string, ram map[uint32](uint32), checkIO bool, callback func(
 		outputs, err := ioutil.ReadFile(fmt.Sprintf("%s/output", root))
 		check(err)
 		real := append([]byte{0x13, 0x37, 0xf0, 0x0d}, outputs...)
-		output, _ := mu.MemRead(0x30000800, 0x44)
+		output, _ := mu.MemRead(0x30000800, 0x24)
 		if bytes.Compare(real, output) != 0 {
 			fmt.Printf("%x != %x\n", real, output)
 			log.Fatal("mismatch output")

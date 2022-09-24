@@ -1,18 +1,20 @@
 const fs = require("fs")
-const { basedir, deployed, getBlockRlp, getTrieNodesForCall } = require("../scripts/lib")
+const { basedir, deployed, getTrieNodesForCall } = require("../scripts/lib")
 
 async function main() {
   let [c, m, mm] = await deployed()
 
   const blockNumberN = parseInt(process.env.BLOCK)
-  if (isNaN(blockNumberN)) {
-    throw "usage: BLOCK=<number> npx hardhat run challenge.js"
+  // The challenged block contents to submit during the challenge. Will be checked on-chain and must
+  // match the previously submitted (see preload.js) block hash.
+  const REAL_BLOCK = process.env.REAL_BLOCK
+
+  if (isNaN(blockNumberN) || REAL_BLOCK == undefined) {
+    throw "usage: BLOCK=<number> REAL_BLOCK=<path> npx hardhat run challenge.js"
   }
   console.log("challenging block number", blockNumberN)
-  // sadly this doesn't work on hosthat
-  const blockNp1 = await network.provider.send("eth_getBlockByNumber", ["0x"+(blockNumberN+1).toString(16), false])
-  console.log(blockNp1)
-  const blockNp1Rlp = getBlockRlp(blockNp1)
+  console.log("real block is", REAL_BLOCK)
+  const blockNp1 = fs.readFileSync(REAL_BLOCK)
 
   console.log(c.address, m.address, mm.address)
 
@@ -31,7 +33,7 @@ async function main() {
   let preimages = Object.assign({}, startTrie['preimages'], finalTrie['preimages']);
   const finalSystemState = finalTrie['root']
 
-  let args = [blockNumberN, blockNp1Rlp, assertionRoot, finalSystemState, finalTrie['step']]
+  let args = [blockNumberN, blockNp1, assertionRoot, finalSystemState, finalTrie['step']]
   let cdat = c.interface.encodeFunctionData("initiateChallenge", args)
   let nodes = await getTrieNodesForCall(c, c.address, cdat, preimages)
 
@@ -46,7 +48,9 @@ async function main() {
   let receipt = await ret.wait()
   // ChallengeCreated event
   let challengeId = receipt.events[0].args['challengeId'].toNumber()
-  console.log("new challenge with id", challengeId)
+  let stateState = receipt.events[0].args['startState']
+  let inputHash = receipt.events[0].args['inputHash']
+  console.log("new challenge with id", challengeId, "and start state", stateState, "and input hash", inputHash)
 }
 
 main()

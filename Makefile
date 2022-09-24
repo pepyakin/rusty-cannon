@@ -12,9 +12,7 @@ submodules:
 .PHONY: submodules
 
 hello_world:
-	RUSTFLAGS="-Clink-arg=-e_start" cargo build --release --target=hello-world/target.json --manifest-path=hello-world/Cargo.toml -Zbuild-std=core,alloc
-	mips-linux-gnu-objdump -d /code/hello-world/target/target/release/hello-world > /code/hello-world.dis
-	mips-linux-gnu-readelf -a /code/hello-world/target/target/release/hello-world > /code/hello-world.sections
+	RUSTFLAGS="-Clink-arg=-e_start" cargo build --release --target=arbitrary/arbitrary-prover-main/mips-unknown-none.json --manifest-path=arbitrary/arbitrary-prover-main/Cargo.toml -Zbuild-std=core,alloc
 
 # Approximation, use `make libunicorn_rebuild` to force.
 unicorn/build: unicorn/CMakeLists.txt

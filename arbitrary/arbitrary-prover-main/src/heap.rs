@@ -1,7 +1,7 @@
 use core::alloc::{GlobalAlloc, Layout};
-use core::ptr::{self, NonNull};
-use core::mem::MaybeUninit;
 use core::cell::RefCell;
+use core::mem::MaybeUninit;
+use core::ptr::{self, NonNull};
 
 struct Alloc {
     heap: RefCell<linked_list_allocator::Heap>,
@@ -37,5 +37,8 @@ static mut ALLOCATOR: Alloc = Alloc::new();
 pub unsafe fn init() {
     const HEAP_SIZE: usize = 0x400000;
     static mut HEAP: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
-    unsafe { ALLOCATOR.heap.borrow_mut().init(HEAP.as_mut_ptr() as *mut u8, HEAP_SIZE) }
+    ALLOCATOR
+        .heap
+        .borrow_mut()
+        .init(HEAP.as_mut_ptr() as *mut u8, HEAP_SIZE)
 }

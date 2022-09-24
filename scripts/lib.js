@@ -19,37 +19,6 @@ async function deploy() {
   return [c,m,mm]
 }
 
-function getBlockRlp(block) {
-  let dat = [
-    block['parentHash'],
-    block['sha3Uncles'],
-    block['miner'],
-    block['stateRoot'],
-    block['transactionsRoot'],
-    block['receiptsRoot'],
-    block['logsBloom'],
-    block['difficulty'],
-    block['number'],
-    block['gasLimit'],
-    block['gasUsed'],
-    block['timestamp'],
-    block['extraData'],
-    block['mixHash'],
-    block['nonce'],
-  ];
-  // post london
-  if (block['baseFeePerGas'] !== undefined) {
-    dat.push(block['baseFeePerGas'])
-  }
-  dat = dat.map(x => (x == "0x0") ? "0x" : x)
-  //console.log(dat)
-  let rdat = rlp.encode(dat)
-  if (ethers.utils.keccak256(rdat) != block['hash']) {
-    throw "block hash doesn't match"
-  }
-  return rdat
-}
-
 async function deployed() {
   let addresses = JSON.parse(fs.readFileSync(basedir+"/deployed.json"))
   const c = await ethers.getContractAt("Challenge", addresses["Challenge"])
@@ -135,4 +104,4 @@ async function writeMemory(mm, root, addr, data, bytes32=false) {
   return root
 }
 
-module.exports = { basedir, deploy, deployed, getTrieNodesForCall, getBlockRlp, getTrieAtStep, writeMemory, MissingHashError }
+module.exports = { basedir, deploy, deployed, getTrieNodesForCall, getTrieAtStep, writeMemory, MissingHashError }

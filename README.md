@@ -1,105 +1,75 @@
-<!--![cannon](https://upload.wikimedia.org/wikipedia/commons/8/80/Cannon%2C_Château_du_Haut-Koenigsbourg%2C_France.jpg)-->
-<!--![cannon](https://cdn1.epicgames.com/ue/product/Featured/SCIFIWEAPONBUNDLE_featured-894x488-83fbc936b6d86edcbbe892b1a6780224.png)-->
-<!--![cannon](https://static.wikia.nocookie.net/ageofempires/images/8/80/Bombard_cannon_aoe2DE.png/revision/latest/top-crop/width/360/height/360?cb=20200331021834)-->
-![cannon](https://paradacreativa.es/wp-content/uploads/2021/05/Canon-orbital-GTA-01.jpg)
+# Rusty Cannon
 
----
+This repo contains a Proof-of-Concept that demonstrates it is possible to have Rust based 
+state transition functions (STF) using [Cannon]. This project was started by [ec2] and [pepyakin] on
+the [EthBerlin3] hackathon, but sadly we didn't have enough time to finish it in time.
 
-**NEW: Cannon is currently the object of [a bug bounty on Immunefi](https://immunefi.com/bounty/optimismcannon/). Find vulnerabilities
-in Cannon for up to a $50.000 payout.**
+## Arbitrary 
 
-- Please take note of [the honest defender assumption](https://github.com/ethereum-optimism/cannon/issues/63)
+The STF that we implement here is called `arbitrary` for whatever reason. 
 
----
+The STF itself is very trivial. The state is basically a mapping from 32 bytes account addresses to
+balances represented as `u64`. The transactions are simple transfers of funds from one account to
+another. The transactions do not have any signatures, so anyone can send any transaction. 
 
-The cannon (cannon cannon cannon) is an on chain interactive dispute engine implementing EVM-equivalent fault proofs.
+The blocks are also very simple. There is no separation between a header and a block, so they are
+passed verbatim. Therefore, there is no need to commiting to the transaction root. Blocks do not 
+have any receipts either. They are just:
 
-It's half geth, half MIPS, and whole awesome.
-
-* It's Go code
-* ...that runs an EVM
-* ...emulating a MIPS machine
-* ...running compiled Go code
-* ...that runs an EVM
-
-For more information on Cannon's inner workings, check [this overview][overview].
-
-[overview]: https://github.com/ethereum-optimism/optimistic-specs/wiki/Cannon-Overview
-
-## Directory Layout
-
-```
-minigeth -- A standalone "geth" capable of computing a block transition
-mipigo -- minigeth compiled for MIPS. Outputs a MIPS binary that's run and mapped at 0x0
-mipsevm -- A MIPS runtime in the EVM (works with contracts)
-contracts -- A Merkleized MIPS processor on chain + the challenge logic
+```rust
+struct Block {
+    number: u64,
+    parent: H256,
+    state_root: H256,
+    txns: Vec<Txn>,
+}
 ```
 
-## Building
+One interesting distinction from the vanilla Cannon approach, is that the MIPS STF does not 
+explicitly target Linux. Instead, we target bare-metal MIPS. By using the bare-metal target we can
+tightly control interactions with the host (onchain verifier or offchain prover), what instructions
+are emitted[^1]. Only one syscall is actually necessary to interact with system. I think this is
+much better approach than be at mercy of the Go compiler and runtime (although probably not much 
+could be done if geth to be used). The price is the lack of standard library, although that should 
+be fixable.
 
-Pre-requisites: Go, Node.js, and Make.
+[^1]: Turns out the way LLVM emits code is a bit more cunning. Unlike Go, it relies on .got table and uses some nasty stuff like `rdwhr` for getting the TLS address.
 
-```
-make build
-make test # verify everything works correctly
-```
+<pre>
+<a href="./arbitrary">arbitrary</a>
+├── <a href="./arbitrary/arbitrary-state-machine">arbitrary-state-machine</a>: The platform-agnostic implementation of a state transition function.
+├── <a href="./arbitrary/arbitrary-prepare-mock">arbitrary-prepare-mock</a>: A program that creates a mock blockchain.
+├── <a href="./arbitrary/arbitrary-prover-main">arbitrary-prover-main</a>: The MIPS STF that is used for proving.
+│   ├── <a href="./arbitrary/arbitrary-prover-main/mips-unknown-none.json">mips-unknown-none.json</a>: The bare-metal target defintion for rustc/llvm.
+</pre>
 
-## Usage
+For implementation of the trie and other essentials, Wei's libraries were used since they were the 
+most lightweight and easy to use. The problem with them they are a bit outdated and most importantly
+the trie crate did not support compilation for `no_std`. The easiest way to fix this was to fork 
+them and rip out all the unnecessary stuff. Here are those:
 
-The following commands should be run from the root directory unless otherwise specified:
+<pre>
+├── <a href="./arbitrary/ethereum-bigint">ethereum-bigint</a>
+├── <a href="./arbitrary/ethereum-hexutil">ethereum-hexutil</a>
+├── <a href="./arbitrary/ethereum-rlp">ethereum-rlp</a>
+├── <a href="./arbitrary/ethereum-trie">ethereum-trie</a>
+</pre>
 
-```
-# compute the transition from 13284469 -> 13284470 on PC
-TRANSITION_BLOCK=13284469
-mkdir -p /tmp/cannon
-minigeth/go-ethereum $TRANSITION_BLOCK
+## How to run
 
-# write out the golden MIPS minigeth start state
-mipsevm/mipsevm
+Usage:
 
-# if you run into "digital envelope routines::unsupported", rerun after this:
-# export NODE_OPTIONS=--openssl-legacy-provider
+    $ git submodule update --init --recursive
+    $ docker build . -t arbitrary-cannon/demo
+    $ docker run -it --rm --name dev -v $(pwd):/code arbitrary-cannon/demo bash
 
-# generate MIPS checkpoints
-mipsevm/mipsevm $TRANSITION_BLOCK
+After you got into the shell, run:
 
-# deploy the MIPS and challenge contracts
-npx hardhat run scripts/deploy.js
-```
+    $ ./demo/challenge_simple.sh
+    $ ./demo/challenge_fault.sh
 
-## Examples
-
-The script files [`demo/challenge_simple.sh`](demo/challenge_simple.sh) and
-[`demo/challenge_fault.sh`](demo/challenge_fault.sh) present two example scenarios demonstrating the
-whole process of a fault proof, including the challenge game and single step verification.
-
-- In the `simple` challenge, the challenger uses the wrong block data in his challenge.
-- In the `fault` scenario, fault injection is used to alter the challenger's memory at a specific
-  step of the execution.
-
-In both cases, the challenger fails to challenge the block. Refer to the documentation string at the
-top of these file for more details regarding the scenario.
-
-## State Oracle API
-
-On chain / in MIPS, we have two simple oracles
-
-* InputHash() -> hash
-* Preimage(hash) -> value
-
-We generate the Preimages in x86 using geth RPC
-
-* PrefetchAccount
-* PrefetchStorage
-* PrefetchCode
-* PrefetchBlock
-
-These are NOP in the VM
-
-## License
-
-Most of this code is MIT licensed, minigeth is LGPL3.
-
-Note: This code is unaudited. It in NO WAY should be used to secure any money until a lot more
-testing and auditing are done. I have deployed this nowhere, have advised against deploying it, and
-make no guarantees of security of ANY KIND.
+[ec2]: https://github.com/ec2
+[pepyakin]: https://github.com/pepyakin
+[arbitrary]: ./arbitrary/
+[Cannon]: https://github.com/ethereum-optimism/cannon
+[EthBerlin3]: https://ethberlin.ooo/

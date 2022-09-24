@@ -1,2 +1,0 @@
-[target.mips-unknown-linux-musl]
-rustflags = ["-Cpanic=abort", "-Ctarget-feature=+crt-static", "-Clink-arg=-e_entry"]

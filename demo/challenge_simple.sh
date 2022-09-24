@@ -58,6 +58,11 @@ exit_trap() {
 }
 trap "exit_trap" SIGINT SIGTERM EXIT
 
+# --- BUILD --------------------------------------------------------------------
+
+shout "BUILDING"
+TARGET_CC=mips-linux-gnu-gcc make build  > /dev/null 2>&1
+
 # --- BOOT MAINNET FORK --------------------------------------------------------
 
 if [[ ! "$SKIP_NODE" ]]; then
@@ -86,11 +91,11 @@ export ID=0
 
 # block whose transition will be challenged
 # this variable is read by challenge.js, respond.js and assert.js
-BLOCK=${BLOCK:-13284469}
+BLOCK=${BLOCK:-1}
 export BLOCK
 
 # block whose pre-state is used by the challenger instead of the challenged block's pre-state
-WRONG_BLOCK=${WRONG_BLOCK:-13284491}
+WRONG_BLOCK=${WRONG_BLOCK:-2}
 
 # clear data from previous runs
 mkdir -p /tmp/cannon /tmp/cannon_fault && rm -rf /tmp/cannon/* /tmp/cannon_fault/*
@@ -105,25 +110,27 @@ npx hardhat run scripts/deploy.js --network $NETWORK
 # challenger will use same initial memory checkpoint and deployed contracts
 cp /tmp/cannon/{golden,deployed}.json /tmp/cannon_fault/
 
-shout "FETCHING PREIMAGES FOR REAL BLOCK"
-minigeth/go-ethereum $BLOCK
+shout "GENERATING PREIMAGES FOR REAL AND WRONG BLOCK"
+cargo run --quiet --manifest-path=arbitrary/arbitrary-prepare-mock/Cargo.toml 2> /dev/null
+cp -r /tmp/cannon/* /tmp/cannon_fault/
+
+shout "PRELOAD ROLLUP BLOCKS"
+npx hardhat run scripts/preload.js --network $NETWORK
 
 shout "COMPUTING REAL MIPS FINAL MEMORY CHECKPOINT"
 mipsevm/mipsevm $BLOCK
-
-shout "FETCHING PREIMAGES FOR WRONG BLOCK"
-BASEDIR=/tmp/cannon_fault minigeth/go-ethereum $WRONG_BLOCK
 
 shout "COMPUTING FAKE MIPS FINAL MEMORY CHECKPOINT"
 BASEDIR=/tmp/cannon_fault mipsevm/mipsevm $WRONG_BLOCK
 
 # pretend the wrong block's input, checkpoints and preimages are the right block's
+rm -r /tmp/cannon_fault/0_$BLOCK
 ln -s /tmp/cannon_fault/0_$WRONG_BLOCK /tmp/cannon_fault/0_$BLOCK
 
 # --- BINARY SEARCH ------------------------------------------------------------
 
 shout "STARTING CHALLENGE"
-BASEDIR=/tmp/cannon_fault npx hardhat run scripts/challenge.js --network $NETWORK
+BASEDIR=/tmp/cannon_fault REAL_BLOCK=/tmp/cannon/0_$BLOCK/block npx hardhat run scripts/challenge.js --network $NETWORK
 
 shout "BINARY SEARCH"
 for i in {1..23}; do

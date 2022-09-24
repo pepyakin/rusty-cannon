@@ -65,6 +65,11 @@ exit_trap() {
 }
 trap "exit_trap" SIGINT SIGTERM EXIT
 
+# --- BUILD --------------------------------------------------------------------
+
+shout "BUILDING"
+TARGET_CC=mips-linux-gnu-gcc make build  > /dev/null 2>&1
+
 # --- BOOT MAINNET FORK --------------------------------------------------------
 
 if [[ ! "$SKIP_NODE" ]]; then
@@ -90,7 +95,7 @@ export NETWORK
 
 # block whose transition will be challenged
 # this variable is read by challenge.js, respond.js and assert.js
-BLOCK=${BLOCK:-13284491}
+BLOCK=${BLOCK:-1}
 export BLOCK
 
 # challenge ID, read by respond.js and assert.js
@@ -109,15 +114,15 @@ npx hardhat run scripts/deploy.js --network $NETWORK
 # challenger will use same initial memory checkpoint and deployed contracts
 cp /tmp/cannon/{golden,deployed}.json /tmp/cannon_fault/
 
-shout "FETCHING PREIMAGES FOR REAL BLOCK"
-minigeth/go-ethereum $BLOCK
+shout "GENERATING PREIMAGES FOR REAL AND WRONG BLOCK"
+cargo run --quiet --manifest-path=arbitrary/arbitrary-prepare-mock/Cargo.toml 2> /dev/null
+cp -r /tmp/cannon/* /tmp/cannon_fault/
+
+shout "PRELOAD ROLLUP BLOCKS"
+npx hardhat run scripts/preload.js --network $NETWORK
 
 shout "COMPUTING REAL MIPS FINAL MEMORY CHECKPOINT"
 mipsevm/mipsevm $BLOCK
-
-# these are the preimages for the real block (but go into a different basedir)
-shout "FETCHING PREIMAGES FOR FAULTY BLOCK"
-BASEDIR=/tmp/cannon_fault minigeth/go-ethereum $BLOCK
 
 # since the computation includes a fault, the output file will be different than
 # for the real block
@@ -130,7 +135,7 @@ OUTPUTFAULT=1 BASEDIR=/tmp/cannon_fault mipsevm/mipsevm $BLOCK
 # --- BINARY SEARCH ------------------------------------------------------------
 
 shout "STARTING CHALLENGE"
-BASEDIR=/tmp/cannon_fault npx hardhat run scripts/challenge.js --network $NETWORK
+BASEDIR=/tmp/cannon_fault REAL_BLOCK=/tmp/cannon/0_$BLOCK/block npx hardhat run scripts/challenge.js --network $NETWORK
 
 shout "BINARY SEARCH"
 for i in {1..25}; do

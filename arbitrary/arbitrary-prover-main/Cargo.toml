@@ -1,5 +1,5 @@
 [package]
-name = "hello-world"
+name = "arbitrary-prover-main"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,12 +8,15 @@ edition = "2021"
 [dependencies]
 linked_list_allocator = "0.10.3"
 rlibc = "1.0.0"
+arbitrary-state-machine = { path = "../arbitrary-state-machine", default-features = false }
+ethereum-rlp = { path = "../ethereum-rlp", default-features = false }
 
 [build-dependencies]
 cc = "*"
 
 [profile.dev]
 panic = "abort"
+
 [profile.release]
 panic = "abort"
 lto = "fat"

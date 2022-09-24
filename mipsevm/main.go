@@ -83,7 +83,7 @@ func main() {
 
 		ZeroRegisters(ram)
 		// not ready for golden yet
-		LoadMappedFileUnicorn(mu, "mipigo/minigeth.bin", ram, 0)
+		LoadMappedFileUnicorn(mu, "mipigo/arbitrary-prover-main.bin", ram, 0)
 		if root == "" {
 			WriteCheckpoint(ram, fmt.Sprintf("%s/golden.json", basedir), -1)
 			fmt.Println("exiting early without a block number")

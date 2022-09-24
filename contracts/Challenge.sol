@@ -73,11 +73,24 @@ contract Challenge {
   /// @notice ID if the last created challenged, incremented for new challenge IDs.
   uint256 public lastChallengeId = 0;
 
+  mapping(uint256 => bytes32) public blocks;
+
+  /// @notice This function is used for creating the demo rollup chain.
+  ///         For our little demo we do not use ethereum blockchain. Instead we use a very simple 
+  ///         STF with it's own little blockchain. This function is used for adding the demo blocks.
+  function addBlock(
+    uint256 blockNumber,
+    bytes32 blockHash
+  ) public {
+    require(msg.sender == owner);
+    blocks[blockNumber] = blockHash;
+  }
+
   /// @notice Maps challenge IDs to challenge data.
   mapping(uint256 => ChallengeData) public challenges;
 
   /// @notice Emitted when a new challenge is created.
-  event ChallengeCreated(uint256 challengeId);
+  event ChallengeCreated(bytes32 startState, bytes32 inputHash, uint256 challengeId);
 
   /// @notice Challenges the transition from block `blockNumberN` to the next block (N+1), which is
   ///         the block being challenged.
@@ -103,8 +116,8 @@ contract Challenge {
     bytes32 computedBlockHash = keccak256(blockHeaderNp1);
 
     // get block hashes, can replace with oracle
-    bytes32 blockNumberNHash = blockhash(blockNumberN);
-    bytes32 blockNumberNp1Hash = blockhash(blockNumberN+1);
+    bytes32 blockNumberNHash = blocks[blockNumberN];
+    bytes32 blockNumberNp1Hash = blocks[blockNumberN+1];
 
     if (blockNumberNHash == bytes32(0) || blockNumberNp1Hash == bytes32(0)) {
       revert("block number too old to challenge");
@@ -114,25 +127,17 @@ contract Challenge {
     // Decode the N+1 block header to construct the fault proof program's input hash.
     // Because the input hash is constructed from data proven against on-chain block hashes,
     // it is provably correct, and we can consider that both parties agree on it.
-    bytes32 inputHash;
+    bytes32 inputHash = computedBlockHash;
     {
       Lib_RLPReader.RLPItem[] memory decodedHeader = Lib_RLPReader.readList(blockHeaderNp1);
 
-      bytes32 parentHash = Lib_RLPReader.readBytes32(decodedHeader[0]);
+      bytes32 parentHash = Lib_RLPReader.readBytes32(decodedHeader[1]);
       // This should never happen, as we validated the hashes beforehand.
       require(blockNumberNHash == parentHash, "parent block hash somehow wrong");
 
-      bytes32 newroot = Lib_RLPReader.readBytes32(decodedHeader[3]);
+      bytes32 newroot = Lib_RLPReader.readBytes32(decodedHeader[2]);
       require(assertionRoot != newroot,
           "asserting that the real state is correct is not a challenge");
-
-      bytes32 txhash    = Lib_RLPReader.readBytes32(decodedHeader[4]);
-      bytes32 coinbase  = bytes32(uint256(uint160(Lib_RLPReader.readAddress(decodedHeader[2]))));
-      bytes32 unclehash = Lib_RLPReader.readBytes32(decodedHeader[1]);
-      bytes32 gaslimit  = Lib_RLPReader.readBytes32(decodedHeader[9]);
-      bytes32 time      = Lib_RLPReader.readBytes32(decodedHeader[11]);
-
-      inputHash = keccak256(abi.encodePacked(parentHash, txhash, coinbase, unclehash, gaslimit, time));
     }
 
     // Write input hash at predefined memory address.
@@ -159,7 +164,7 @@ contract Challenge {
     c.L = 0;
     c.R = stepCount;
 
-    emit ChallengeCreated(challengeId);
+    emit ChallengeCreated(startState, inputHash, challengeId);
     return challengeId;
   }
 

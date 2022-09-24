@@ -8,12 +8,12 @@ export GOMIPS=softfloat
 go build -o ../mipigo/minigeth
 cd ../mipigo
 
-cp ../hello-world/target/target/release/hello-world .
+cp ../arbitrary/arbitrary-prover-main/target/mips-unknown-none/release/arbitrary-prover-main .
 
 python3 -m venv venv
 
 source venv/bin/activate
 pip3 install -r requirements.txt
-./compile.py hello-world
+./compile.py arbitrary-prover-main
 ./compile.py
 deactivate
